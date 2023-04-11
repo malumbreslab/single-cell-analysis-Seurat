@@ -10,7 +10,8 @@ Institution: Spanish National Research Cancer Centre (CNIO)
 
 ## Table of contents
 
-- [Workflow](#workflow)
+- [Step 0: Set up](#step-0:-set-up)
+- [Step 1: Read Input files](#workflow)
 - [Contents of the repository](#contents-of-the-repository)
 - [Pipeline](#pipeline)
 - [Recomendations](#recomendations)
@@ -63,7 +64,7 @@ PLOTS <- '<PATH_RESULTS'
 Read STARsolo output raw data
 
 ```
-counts <- Read10X(data.dir = '/Users/asanchezb/Desktop/gcbonel_scGEX_220921/CTC/CTC.out/Gene/raw/')  # Seurat function to read in 10x count data
+counts <- Read10X(data.dir = 'path_to_STARsolo_output>/CTC.out/Gene/raw/')  # Seurat function to read in 10x count data
 dim(counts)
 ```
 
