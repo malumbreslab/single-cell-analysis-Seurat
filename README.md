@@ -24,6 +24,11 @@
 - [Step 11: Subsets](#step-11-subsets)
 - [Step 12: Save files](#step-12-save-files)
 
+
+## Workflow
+
+![This is an image](/images/workflow.png)
+
 ## Contents of the repository
 
 - The R script `analysis_seurat.R` that can be used for doing Single-cell RNA sequencing analysis.
