@@ -60,7 +60,7 @@ theme_set(theme_bw(base_size = 14))
 Results path
 
 ```
-PLOTS <- '<PATH_RESULTS'
+PLOTS <- '<path_results>'
 ```
   
 ### Step 1: Read Input files
