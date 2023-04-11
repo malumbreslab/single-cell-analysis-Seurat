@@ -85,12 +85,14 @@ CTC_seurat
 ```
 grep("^MT",rownames(CTC_seurat@assays$RNA@counts),value = TRUE)
 CTC_seurat[["percent.mt"]] <- PercentageFeatureSet(CTC_seurat, pattern = "^MT")
+```
 
 #### B) Ribosomal
 
 ```
 grep("^RP[LS]",rownames(CTC_seurat@assays$RNA@counts),value = TRUE)
 CTC_seurat[["percent.ribo"]] <- PercentageFeatureSet(CTC_seurat, pattern = "RP[LS]")
+```
 
 #### C) Counts
 
@@ -99,6 +101,7 @@ feat.max <- round(mean(CTC_seurat$nFeature_RNA) + 2 * sd(CTC_seurat$nFeature_RNA
 feat.min <- round(mean(CTC_seurat$nFeature_RNA) - 1 * sd(CTC_seurat$nFeature_RNA), digits = -2)
 CTC_seurat <- subset(x = CTC_seurat, 
                           subset = nFeature_RNA > feat.min & nFeature_RNA < feat.max & percent.mt < 20 & percent.ribo < 40)
+```
 
 #### D) Largest gene
 
@@ -187,103 +190,4 @@ qc.metrics %>%
   geom_histogram(binwidth = 0.5, fill="yellow", colour="black") +
   ggtitle("Distribution of Percentage Ribosomal") +
   geom_vline(xintercept = 10)
-
-
-### Step 3: Create table
-
-`chopchop.py` will need a [table](http://genome.ucsc.edu/cgi-bin/hgTables?command=start) to look up genomic coordinates if you want to supply names of the genes rather than coordinates. To get example genePred table:
-
-- Select organism and assembly
-- Select group: Genes and Gene Predictions
-- Select track: RefSeq Genes or Ensemble Genes
-- Select table: refGene or ensGene
-- Select region: genome
-- Select output format: all fields from selected table
-- Fill name with extension ".gene_table' e.g. danRer10.gene_table
-- Get output
-
-```
-mkdir genePred_folder
-```
-Save `file.gene_table` inside of `genePred_folder`.
-
-### Step 4: Download genome
-
-Download *.2bit compressed [genome](http://hgdownload.soe.ucsc.edu/downloads.html):
-
-- Select organism in complete annotation sets section
-- Select Full data set
-- download *.2bit file
-
-```
-mkdir 2bit_folder
-wget -P 2bit_folder http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/latest/hg38.2bit
-```
-
-### Step 5: Download genome
-
-Create fasta version of genome by running twoBitToFa on *.2bit file
-
-``` 
-./twoBitToFa 2bit_folder/hg38.2bit hg38.fasta
-```
-
-### Step 6: Create bowtie version
-
-Make [bowtie](http://bowtie-bio.sourceforge.net/manual.shtml#the-bowtie-build-indexer) compressed version of genome using your new *.fasta file
-
-```
-mkdir ebwt_folder
-./bowtie/bowtie-build hg38.fasta ebwt_folder/hg38
-```
-
-### Step 6: Create bowtie version
-
-Change `config.json` file, replace paths with your own for .2bit genome files, bowtie (.ewbt) genome files and *.gene_table files
-
-Observe `config.json` in order to see an example.
-
-### Step 7: Permissions
-
-Make sure all these files and programs have proper access rights. You can use the `chmod` command in order to change permissions. Maybe some packages may require compilation for your operating system.
-
-### Step 8a: Run KO pipeline (single gen) 
-
-You must run this in your terminal shell and in gen must type the name of the interest gen (be carefull, you must write gene name correctly, some genes have several names, but it is only in one way).
-
-```
-./chopchop.py -G hg38 -o results -Target <gen> --scoringMethod DOENCH_2016 -consensusUnion -t CODING > results/<gen>.txt
-```
-- -G is the genome to search
-- -o output folder
-- -Target Target genes or regions
-- -t Target the whole gene CODING/WHOLE/UTR5/UTR3/SPLICE
-- -consensusUnion this option specifies union of isoforms
-
-When the gene is very small, the design the guides will fail and -t WHOLE is recommended.
-
-### Step 8b: Run Activation pipeline (single gen)
-
-You must run this in your terminal shell and in gen must type the name of the interest gen (be carefull, you must write gene name correctly, some genes have several names, but it is only in one way).
-
-```
-./chopchop.py -G hg38 -o results -Target <gen> --scoringMethod DOENCH_2016 -consensusUnion -t PROMOTER -TDP 0 -TUP 300 > results/<gen>.txt
-```
-- -t Promoter
-- -TDP how many bp to target downstream of TSS
-- -TUP how many bp to target upstream of TSS
-
-### Step 9: Run pipeline (several genes)
-
-You must run this in your terminal shell and type interest genes separated by spaces.
-
-```
-bash chop_pipeline.sh <gen1> <gen2> <gen3> <gen4>
-```
-## Recomendations
-
-`chopchop.py` has a lot of funtionalities and arguments that you can change, it would be well for you observe this in the chochop [link](https://bitbucket.org/valenlab/chopchop/src/master/) or doing this:
-
-```
-./chopchop.py --help
 ```
