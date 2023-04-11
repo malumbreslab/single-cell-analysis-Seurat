@@ -17,7 +17,7 @@
 - [Step 4: Add aneuploidy information](#step-4-add-aneuploidy-information)
 - [Step 5: Higly variable genes](#step-5-higly-variable-genes)
 - [Step 6: Scale data](#step-6-scale-data)
-- [Step 7: Reductional dimension](#step-7-reductional-dimension)
+- [Step 7: Dimensionality reduction](#step-7-dimensionality-reduction)
 - [Step 8: Cluster markers](#step-8-cluster-markers)
 - [Step 9: Scores](#step-9-scores)
 - [Step 10: Annotation](#step-10-annotation)
@@ -286,7 +286,7 @@ CTC_seurat <- ScaleData(CTC_seurat, features = all.genes) # vars.to.regress = c(
 ```
 
 
-### Step 7: Reductional dimension
+### Step 7: Dimensionality reduction
 
 #### A) Principal Component Analysis (PCA)
 
