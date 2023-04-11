@@ -419,7 +419,7 @@ FeaturePlot(CTC_seurat, features = "CTC_Features1")
 ```
 ### Step 10: Annotation
 
-#### A) MANUAL ANNOTATIONS
+#### A) Manual annotation
 
 1) CTCs 
 
@@ -513,7 +513,7 @@ FeaturePlot(CTC_seurat, features = Comb)
 dev.off()
 ```
 
-#### B) AUTOMATIC ANNOTATION
+#### B) Automatic annotation
 
 1. SCINA
 
