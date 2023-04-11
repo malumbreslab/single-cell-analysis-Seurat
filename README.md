@@ -191,3 +191,406 @@ qc.metrics %>%
   ggtitle("Distribution of Percentage Ribosomal") +
   geom_vline(xintercept = 10)
 ```
+
+### Step 3: Normalization
+
+Choose one of them
+
+#### A) LogNormalize method
+
+```
+CTC_seurat <- NormalizeData(CTC_seurat, normalization.method = "LogNormalize", scale.factor = 10000)
+apply(CTC_seurat@assays$RNA@data,1,mean) -> gene.expression
+sort(gene.expression, decreasing = TRUE) -> gene.expression
+head(gene.expression, n=50)
+
+ggplot(mapping = aes(CTC_seurat@assays$RNA@data["GAPDH",])) + 
+  geom_histogram(binwidth = 0.05, fill="yellow", colour="black") + 
+  ggtitle("GAPDH expression")
+```
+
+#### B) CLR method
+
+```
+CTC_seurat <- NormalizeData(CTC_seurat, normalization.method = "CLR", margin = 2) 
+ggplot(mapping = aes(CTC_seurat@assays$RNA@data["GAPDH",])) + 
+  geom_histogram(binwidth = 0.05, fill="yellow", colour="black") + 
+  ggtitle("GAPDH expression")
+```
+#### C) SCTransform method (recommended)
+
+```
+CTC_seurat <- SCTransform(CTC_seurat, vst.flavor = "v2")
+ggplot(mapping = aes(CTC_seurat@assays$RNA@data["GAPDH",])) + 
+  geom_histogram(binwidth = 0.05, fill="yellow", colour="black") + 
+  ggtitle("GAPDH expression")
+```
+
+### Step 4: Add aneuploidy information (copykat)
+
+Read copykat prediction
+
+```
+pred.test <- read.table('path_copykat_predictions', sep = '\t', header = TRUE)
+```
+
+Remove undefined cells
+
+```
+pred.test <- pred.test[-which(pred.test$copykat.pred=="not.defined"),]
+```
+
+Merge with metadata and add to Seurat object
+
+```
+new_data <- merge(CTC_seurat@meta.data, pred.test, by.x = 0, by.y = 'cell.names', all.x = TRUE)
+CTC_seurat@meta.data$copykat.pred <- new_data$copykat.pred
+```
+
+### Step 5: Higly variable genes
+
+Identification of highly variable features (feature selection)
+
+```
+CTC_seurat <- FindVariableFeatures(CTC_seurat, selection.method = "vst", nfeatures = 2000)
+```
+
+Identify the 10 most highly variable genes
+
+```
+top10 <- head(VariableFeatures(CTC_seurat), 10)
+```
+
+Plot variable features with and without labels
+
+```
+png(paste0(PLOTS,'Variable_features.png'), width = 1600, height = 900)
+plot1 <- VariableFeaturePlot(CTC_seurat)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1 + plot2 
+dev.off()
+```
+
+### Step 6: Scale data
+
+Scaling data
+
+```
+all.genes <- rownames(CTC_seurat)
+CTC_seurat <- ScaleData(CTC_seurat, features = all.genes) # vars.to.regress = c("S.Score", "G2M.Score")
+```
+
+
+### Step 7: Reductional dimension
+
+#### A) Principal Component Analysis (PCA)
+
+Perform linear dimensional reduction
+
+```
+CTC_seurat <- RunPCA(CTC_seurat, features = VariableFeatures(object = CTC_seurat))
+```
+Assign Cell-Cycle Scores (for human)
+
+```
+s.genes <- cc.genes.updated.2019$s.genes
+g2m.genes <- cc.genes.updated.2019$g2m.genes
+CTC_seurat <- CellCycleScoring(CTC_seurat, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+CTC_seurat[[]]
+as_tibble(CTC_seurat[[]]) %>%
+  ggplot(aes(Phase)) + geom_bar()
+
+as_tibble(CTC_seurat[[]]) %>%
+  ggplot(aes(x=S.Score, y=G2M.Score, color=Phase)) + 
+  geom_point() +
+  coord_cartesian(xlim=c(-0.15,0.15), ylim=c(-0.15,0.15))
+
+RidgePlot(CTC_seurat, features = c("PCNA", "TOP2A", "MCM6", "MKI67"), ncol = 2)
+```
+
+Performing PCA analysis
+```
+CTC_seurat <- RunPCA(CTC_seurat, features = c(s.genes, g2m.genes))
+DimPlot(CTC_seurat)
+```
+
+Examine and visualize PCA results a few different ways
+
+```
+print(CTC_seurat[["pca"]], dims = 1:5, nfeatures = 5)
+VizDimLoadings(CTC_seurat, dims = 1:7, reduction = "pca")
+
+png(paste0(PLOTS,'PCA_orign.png'), width = 1400, height = 1200)
+DimPlot(CTC_seurat, reduction = "pca", group.by = 'orig.ident')
+dev.off()
+
+png(paste0(PLOTS,'heatmap_PCAs.png'), width = 1400, height = 1200)
+DimHeatmap(CTC_seurat, dims = 1:6, balanced = TRUE)
+dev.off()
+```
+
+Selection
+
+```
+CTC_seurat <- JackStraw(CTC_seurat, num.replicate = 100)
+CTC_seurat <- ScoreJackStraw(CTC_seurat, dims = 1:20)
+
+png(paste0(PLOTS,'JackStrawPlot.png'), width = 1400, height = 1200)
+JackStrawPlot(CTC_seurat, dims = 1:10)
+dev.off()
+
+png(paste0(PLOTS,'Elbow_plot.png'), width = 1400, height = 1200)
+ElbowPlot(CTC_seurat)
+dev.off()
+```
+
+#### B) UMAP
+
+```
+CTC_seurat <- FindNeighbors(CTC_seurat, dims = 1:10)
+CTC_seurat <- FindClusters(CTC_seurat, resolution = 0.5)
+```
+
+Look at cluster IDs of the first 5 cells
+
+```
+head(Idents(CTC_seurat), 5)
+```
+```
+CTC_seurat <- RunUMAP(CTC_seurat, dims = 1:10)
+DimPlot(CTC_seurat, reduction = "umap")
+DimPlot(CTC_seurat, reduction = "umap", group.by = 'copykat.pred')
+
+png(paste0(PLOTS,'UMAP_clusters.png'), width = 1200, height = 1200)
+DimPlot(CTC_seurat, reduction = "umap")
+dev.off()
+```
+
+Quality visualization
+
+```
+FeaturePlot(CTC_seurat, features = 'nCount_RNA')
+FeaturePlot(CTC_seurat, features = 'percent.mt')
+FeaturePlot(CTC_seurat, features = 'percent.ribo')
+```
+
+### Step 8: Cluster markers
+
+```
+CTC.markers <- FindAllMarkers(CTC_seurat, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+write.table(CTC.markers, 'markers_clusters.txt', sep = "\t")
+top5 <- CTC.markers %>%
+  group_by(cluster) %>%
+  slice_max(n = 5, order_by = avg_log2FC)
+
+CTC.markers %>%
+  group_by(cluster) %>%
+  top_n(n = 10, wt = avg_log2FC) -> top10
+
+png(paste0(PLOTS,'Heatmap.png'), width = 1400, height = 1200)
+DoHeatmap(CTC_seurat, features = top10$gene) + NoLegend()
+dev.off()
+```
+
+### Step 9: Scores
+
+Scoring Epithelial markers
+
+```
+CTC_features <- list(c("EPCAM", "KRT8", "KRT4", "KRT5","KRT18","KRT19","KRT9","KRT14","KRT15","ESR1","PGR","AR","ERBB2","ERBB1","MKI67"))
+
+CTC_seurat <- AddModuleScore(
+  object = CTC_seurat,
+  features = CTC_features,
+  ctrl = 5,
+  name = 'CTC_Features'
+)
+FeaturePlot(CTC_seurat, features = "CTC_Features1")
+```
+### Step 10: Annotation
+
+#### A) MANUAL ANNOTATIONS
+
+1) CTCs 
+
+```
+CTC <- c("EPCAM", "KRT8", "KRT4", "KRT5","KRT18","KRT19","KRT9","KRT14","KRT15","ESR1","PGR","AR","ERBB2","ERBB1","MKI67")
+
+png(paste0(PLOTS,'CTC_markers.png'), width = 1400, height = 1000)
+FeaturePlot(CTC_seurat, features = CTC)
+dev.off()
+```
+
+2) Immune system
+
+```
+FeaturePlot(CTC_seurat, features = 'PTPRC')
+
+Macrophages <- c("ITGAL","ITGAM","ITGAX","CD14","FUT4","FCGR3A","CD33","FCGR1A","CD68","CD80","CCR5","TLR2","MSR1","MRC1","TLR4","HLA-DRA","CD163")
+Tcells <- c("CD4","CD3D","CD3E","CD3G","FOXP3","PTPRC","IL2RA","CD6","CCR6","CD8A","CCR7","IL7R","SELL","CD27","CTLA4","GZMB")
+NK <- c("NCAM1","CD2","FCGR3A","KLRD1","NCR1","KLRB1","KLRK1","CD69","NKG7","IL2RB","NKG2D","GZMB","GZMA","GZMM","FCGR3A","GNLY","COX6A2","ZMAT4","KIR2DL4")
+Bcells <- c("CD19","CD24","MS4A1","PAX5","JCHAIN","CD37","CD74","CD79A","CD79B","HLA-DPA1","HLA-DRA")
+Platelets <- c("CD9","ITGB1","PECAM1","FCGR2A","CD36","ITGA2B","GP1BA","SPN","CD46","CD47","CD48","ITGA2","ITGA6","PPBP","PF4","GNG11")
+DC <- c("CD4","CD1A","CD1B","CD1C","ITGAM","ITGAX","CD40","CCR7","IL3RA","CST3","NRP1","FCER1A")
+Fibroblast <- c("MME", "ITGB1", "CD47", "CD81","LRP1","IL1R1")
+Erythrocytes <- c("CD24","GYPA","RUVBL1","HBB","HBD")
+```
+
+
+A) Tcells
+
+```
+png(paste0(PLOTS,'Tcells_markers.png'), width = 1400, height = 1200)
+FeaturePlot(CTC_seurat, features = Tcells)
+dev.off()
+```
+
+B) NK
+
+```
+png(paste0(PLOTS,'NK_markers.png'), width = 1400, height = 1200)
+FeaturePlot(CTC_seurat, features = NK)
+dev.off()
+```
+
+
+
+C) Macrophages/Monocytes
+
+```
+png(paste0(PLOTS,'Macrophages_markers.png'), width = 1400, height = 1200)
+FeaturePlot(CTC_seurat, features = Macrophages)
+dev.off()
+```
+
+D) Bcells
+
+```
+png(paste0(PLOTS,'Bcells_markers.png'), width = 1400, height = 1200)
+FeaturePlot(CTC_seurat, features = Bcells)
+dev.off()
+```
+
+E) Platelets
+```
+png(paste0(PLOTS,'Platelets_markers.png'), width = 1400, height = 1200)
+FeaturePlot(CTC_seurat, features = Platelets)
+dev.off()
+```
+
+F) DC
+
+```
+png(paste0(PLOTS,'DC_markers.png'), width = 1400, height = 1200)
+FeaturePlot(CTC_seurat, features = DC)
+dev.off()
+```
+
+G) Fibroblast
+
+```
+png(paste0(PLOTS,'Fibroblast_markers.png'), width = 1400, height = 1200)
+FeaturePlot(CTC_seurat, features = Fibroblast)
+dev.off()
+```
+
+Combination
+
+```
+Comb <- c("CD3D","IL7R","NKG7","GNLY","CD14","CD68","CD79A","MS4A1")
+png(paste0(PLOTS,'Comb_markers.png'), width = 1400, height = 1200)
+FeaturePlot(CTC_seurat, features = Comb)
+dev.off()
+```
+
+#### B) AUTOMATIC ANNOTATION
+
+1. SCINA
+
+```
+as.data.frame(CTC_seurat@assays$RNA[,]) -> scina.data
+load(system.file('extdata','example_signatures.RData', package = "SCINA"))
+
+names(signatures)[1] <- 'Monocytes'
+names(signatures)[2] <- 'Bcells'
+names(signatures)[3] <- 'NK'
+
+signatures$CTC <- CTC
+signatures$Fibroblast <- Fibroblast
+signatures$Platelets <- Platelets
+signatures$Erythrocytes <- Erythrocytes
+signatures$Macrophages <- Macrophages
+signatures$Tcells <- Tcells
+signatures$Bcells <- Bcells
+signatures$DC <- DC
+signatures$NK <- NK
+
+
+SCINA(
+  scina.data,
+  signatures, 
+  max_iter = 100, 
+  convergence_n = 10, 
+  convergence_rate = 0.999, 
+  sensitivity_cutoff = 0.9, 
+  rm_overlap=TRUE, 
+  allow_unknown=FALSE
+
+) -> scina.results
+
+CTC_seurat$scina_labels <- scina.results$cell_labels
+
+png(paste0(PLOTS,'UMAP_scina_annotations_less_unknown.png'), width = 1200, height = 1200)
+DimPlot(CTC_seurat,reduction = "umap", pt.size = 0.8, label = TRUE, group.by = "scina_labels", label.size = 5)
+dev.off()
+
+table(CTC_seurat$scina_labels)
+
+
+Idents(object = CTC_seurat) <- "scina_labels"
+CTC.markers.scina <- FindAllMarkers(CTC_seurat, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+
+2. AZIMUV
+
+Azimuth predictions
+
+```
+predictions <- read.delim('<path_azimuv_predictions>', row.names = 1)
+CTC_seurat <- AddMetaData(
+  object = CTC_seurat,
+  metadata = predictions)
+
+DimPlot(CTC_seurat,reduction = "umap", pt.size = 0.8, label = TRUE, group.by = "predicted.celltype.l2", label.size = 5)
+DimPlot(CTC_seurat,reduction = "umap", pt.size = 0.8, label = TRUE, group.by = "predicted.celltype.l1", label.size = 5)
+```
+
+### Step 11: Subset
+
+Subset CTCs
+
+```
+CTC_seurat_CTC <- subset(x = CTC_seurat, 
+                          subset = scina_labels == 'CTC')
+```
+
+
+### Step 12: Save files
+
+Save H5 object
+
+```
+SaveH5Seurat(CTC_seurat, overwrite = TRUE)
+CTC_seurat <- LoadH5Seurat("CTC/CTC.h5Seurat")
+```
+
+Save an object to a file
+
+```
+saveRDS(CTC_seurat, file = "/Users/asanchezb/Desktop/gcbonel_scGEX_220921/CTC/CTC_seurat.rds")
+CTC_seurat <- readRDS(file = "/Users/asanchezb/Desktop/gcbonel_scGEX_220921/CTC/CTC_seurat.rds")
+```
+
+
+
+
