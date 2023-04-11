@@ -2,7 +2,6 @@
 
 ## Description
 
-- Title: Single-cell analysis from CTC in culture from CDK4/6 inhibitor-treated metastatic breast cancer patients
 - Analysis: Single-cell RNA sequencing
 - Date: 04/04/23
 - Author: Agustín Sánchez Belmonte (asanchezb@cnio.es)
