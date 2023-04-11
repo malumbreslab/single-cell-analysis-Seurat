@@ -10,11 +10,19 @@ Institution: Spanish National Research Cancer Centre (CNIO)
 
 ## Table of contents
 
-- [Step 0: Set up](#step-0:-set-up)
-- [Step 1: Read Input files](#workflow)
-- [Contents of the repository](#contents-of-the-repository)
-- [Pipeline](#pipeline)
-- [Recomendations](#recomendations)
+- [Step 0: Set up](#step-0-set-up)
+- [Step 1: Read Input files](#step-1-read-input-files)
+- [Step 2: Filtering](#step-2-filtering)
+- [Step 3: Normalization](#step-3-normalization)
+- [Step 4: Add aneuploidy information](#step-4-add-aneuploidy-information)
+- [Step 5: Higly variable genes](#step-5-higly-variable-genes)
+- [Step 6: Scale data](#step-6-scale-data)
+- [Step 7: Reductional dimension](#step-7-reductional-dimension)
+- [Step 8: Cluster markers](#step-8-cluster-markers)
+- [Step 9: Scores](#step-9-scores)
+- [Step 10: Annotation](#step-10-annotation)
+- [Step 11: Subsets](#step-11-subsets)
+- [Step 12: Save files](#step-12-save-files)
 
 ## Workflow
 
@@ -227,7 +235,7 @@ ggplot(mapping = aes(CTC_seurat@assays$RNA@data["GAPDH",])) +
   ggtitle("GAPDH expression")
 ```
 
-### Step 4: Add aneuploidy information (copykat)
+### Step 4: Add aneuploidy information
 
 Read copykat prediction
 
