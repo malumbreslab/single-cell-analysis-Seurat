@@ -282,6 +282,8 @@ dev.off()
 
 ### Step 6: Scale data
 
+Please skip this step if you have used `SCTransform` normalization method
+
 Scaling data
 
 ```
